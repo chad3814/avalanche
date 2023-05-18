@@ -1,0 +1,35 @@
+{
+  "name": "avalanche",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:chad3814/semaphore-mutex.git",
+  "type": "module",
+  "license": "MIT",
+  "author": {
+    "name": "Chad Walker",
+    "email": "chad@cwalker.dev"
+  },
+  "contributors": [
+    {
+      "name": "Chris Kirmse",
+      "email": "ckirmse@yahoo.com"
+    }
+  ],
+  "maintainers": [
+    {
+      "name": "Chad Walker",
+      "email": "chad@cwalker.dev"
+    }
+  ],
+  "scripts": {
+    "build": "node-gyp configure build --silent",
+    "clean": "node-gyp clean --silent"
+  },
+  "dependencies": {
+    "mime": "^3.0.0",
+    "node-addon-api": "*",
+    "promise-timeout": "^1.3.0",
+    "request": "^2.88.2",
+    "semaphore-mutex": "^1.0.1"
+  }
+}
