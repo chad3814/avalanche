@@ -53,7 +53,10 @@ export class LockedVideoReader {
   getBlockedCount(): number;
 }
 
-export function createVideoReader(): LockedVideoReader;
-export function defaultLogAvalanche(level: 'info' | 'error' | 'warn' | 'debug', is_libav: boolean, str: string): void;
-export function setLogFunc(log_func: typeof defaultLogAvalanche): void;
-  
+type logFn = (level: 'info' | 'error' | 'warn' | 'debug', is_libav: boolean, str: string) => void;
+type _export = {
+  createVideoReader: () => LockedVideoReader;
+  defaultLogAvalanche: logFn;
+  setLogFunc: (log_func: logFn) => void;
+};
+export default _export;
