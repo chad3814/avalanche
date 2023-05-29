@@ -9,7 +9,7 @@ export type DataSourceActivity = {
   is_fetching: boolean;
 };
 
-export class DataSource {
+export default class DataSource {
   constructor(url: string);
   init(): Promise<void>;
   getUrl(): string;

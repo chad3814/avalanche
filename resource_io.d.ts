@@ -21,7 +21,7 @@ type Activity = {
   };
 }
 
-export class ResourceIo {
+export default class ResourceIo {
   constructor(uri: string);
   getPrimaryUri(): string
   summarizeActivity(): Activity;

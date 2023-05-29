@@ -6,7 +6,7 @@ import log from './log.js';
 
 import DataSource from './data_source.js';
 
-class ResourceIo {
+export default class ResourceIo {
   constructor(uri) {
     // some versions of libav have trouble handling HLS videos with s3 urls
     // EVEN THOUGH we are doing custom io, so it should NOT care about the url at all.
@@ -127,5 +127,3 @@ class ResourceIo {
     }
   }
 }
-
-export default ResourceIo;

@@ -28,7 +28,7 @@ const sleep = (ms) => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
-class DataSource {
+export default class DataSource {
   constructor(url) {
     this.url = url;
 
@@ -314,5 +314,3 @@ class DataSource {
     }
   }
 }
-
-export default DataSource;
