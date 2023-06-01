@@ -1,7 +1,7 @@
 {
   "name": "avalanche-video",
   "version": "1.0.5",
-  "main": "buidl/index.js",
+  "main": "build/index.js",
   "type": "module",
   "repository": "git@github.com:chad3814/avalanche.git",
   "license": "MIT",
