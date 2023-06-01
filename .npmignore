@@ -2,4 +2,8 @@ tsconfig.json
 tslint.json
 .prettierrc
 .prettierignore
-.trunk  
+.trunk
+/build/Release
+/build/node_modules
+/build/node_gyp_bins
+/build/nodejs_wrapper
