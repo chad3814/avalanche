@@ -8,8 +8,8 @@ import ResourceIo from './resource_io.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
+// tslint:disable:no-var-requires
 const avalancheNative = require('./Release/avalanche.node');
-//const avalancheNative = avalancheNativeModule.exports;
 const Semaphore = sem.default;
 
 let pendingStr = '';
