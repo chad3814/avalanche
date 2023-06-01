@@ -2,7 +2,7 @@
  * (c) Chad Walker, Chris Kirmse
  */
 
-import {promises as pfs} from 'fs';
+import { promises as pfs } from 'fs';
 
 import log from '../log.js';
 import utils from '../../utils.js';
@@ -19,31 +19,26 @@ const main = async function () {
   }
 
   const uri = process.argv[2];
-  const resource_io = new ResourceIo(uri);
-  const dest_filename_template = process.argv[3];
-  const start_time = parseFloat(process.argv[4]);
-  const end_time = parseFloat(process.argv[5]);
-  const gap_time = parseFloat(process.argv[6]);
+  const resourceIo = new ResourceIo(uri);
+  const destFilenameTemplate = process.argv[3];
+  const startTime = parseFloat(process.argv[4]);
+  const endTime = parseFloat(process.argv[5]);
+  const gapTime = parseFloat(process.argv[6]);
   try {
-    const video_reader = Avalanche.createVideoReader();
-    await video_reader.init(resource_io);
+    const videoReader = Avalanche.createVideoReader();
+    await videoReader.init(resourceIo);
 
-    let timestamp = start_time;
-    while (timestamp < end_time) {
-      const get_image_result = await video_reader.getImageAtTimestamp(
-        timestamp,
-      );
+    let timestamp = startTime;
+    while (timestamp < endTime) {
+      const getImageResult = await videoReader.getImageAtTimestamp(timestamp);
       log.info(
-        `asked for image at timestamp ${timestamp} actually got ${get_image_result.timestamp} duration ${get_image_result.duration}`,
+        `asked for image at timestamp ${timestamp} actually got ${getImageResult.timestamp} duration ${getImageResult.duration}`,
       );
 
-      timestamp = get_image_result.timestamp + gap_time;
+      timestamp = getImageResult.timestamp + gapTime;
       await pfs.writeFile(
-        `${dest_filename_template}${utils.roundToDecimalDigits(
-          get_image_result.timestamp,
-          3,
-        )}.ppm`,
-        get_image_result.net_image_buffer,
+        `${destFilenameTemplate}${utils.roundToDecimalDigits(getImageResult.timestamp, 3)}.ppm`,
+        getImageResult.net_image_buffer,
       );
     }
   } catch (err) {

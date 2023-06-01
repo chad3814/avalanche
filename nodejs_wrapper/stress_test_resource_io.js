@@ -26,10 +26,10 @@ class ResourceIo {
 */
 
 const main = async function () {
-  const resource_io = new ResourceIo('/home/ckirmse/junk/new/playlist.m3u8');
+  const resourceIo = new ResourceIo('/home/ckirmse/junk/new/playlist.m3u8');
   let metadata;
   try {
-    metadata = await Avalanche.stressTestResourceIo(resource_io);
+    metadata = await Avalanche.stressTestResourceIo(resourceIo);
   } catch (err) {
     log.info('failed stress test', err);
     return;

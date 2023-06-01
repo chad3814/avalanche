@@ -11,12 +11,14 @@ import request from 'request';
 
 const {
   promises: pfs,
-  constants: {R_OK, W_OK},
+  constants: { R_OK, W_OK },
 } = fs;
 
 const ResourceLib = {};
 
-const noop = function () {};
+const noop = function () {
+  /**/
+};
 const UNKNOWN_MIME_TYPE = 'application/octet-stream';
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
@@ -24,40 +26,40 @@ const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 class CountingStream extends stream.PassThrough {
   constructor(options) {
     super(options);
-    this._bytes_in = 0;
-    this._bytes_out = 0;
-    this._expected_bytes = null;
+    this._bytesIn = 0;
+    this._bytesOut = 0;
+    this._expectedBytes = null;
     this._stoppered = true;
-    this._stoppered_data = [];
+    this._stopperedData = [];
   }
 
   unstop() {
     if (!this._stoppered) {
       return;
     }
-    for (const data of this._stoppered_data) {
+    for (const data of this._stopperedData) {
       this.push(data);
-      this._bytes_out += data.length;
+      this._bytesOut += data.length;
       this.emit('progress', this.getProgress());
     }
     this._stoppered = false;
-    this._stoppered_data.length = 0;
+    this._stopperedData.length = 0;
   }
 
   setExpectedBytes(bytes) {
-    this._expected_bytes = bytes;
+    this._expectedBytes = bytes;
   }
 
   getExpectedBytes() {
-    return this._expected_bytes;
+    return this._expectedBytes;
   }
 
   getProgress() {
     const progress = {
       stoppered: this._stoppered,
-      bytes_in: this._bytes_in,
-      bytes_out: this._bytes_out,
-      expected_bytes: this._expected_bytes,
+      bytesIn: this._bytesIn,
+      bytesOut: this._bytesOut,
+      expectedBytes: this._expectedBytes,
     };
 
     return progress;
@@ -67,14 +69,14 @@ class CountingStream extends stream.PassThrough {
     if (encoding !== 'buffer') {
       data = Buffer.from(data, encoding);
     }
-    this._bytes_in += data.length;
+    this._bytesIn += data.length;
     this.emit('progress', this.getProgress());
     if (this._stoppered) {
-      this._stoppered_data.push(data);
+      this._stopperedData.push(data);
       return setImmediate(callback);
     }
     this.push(data);
-    this._bytes_out += data.length;
+    this._bytesOut += data.length;
     this.emit('progress', this.getProgress());
     return callback();
   }
@@ -89,58 +91,54 @@ class CountingStream extends stream.PassThrough {
 // added to them that will destroy the underlying resource
 // when called, fixing a slightly broken implementation of
 // `stream.PassThrough()`
-ResourceLib.getReadStreamByUri = async function (
-  uri,
-  options = {},
-  read_progress_callback = noop,
-) {
-  let total_bytes;
+ResourceLib.getReadStreamByUri = async function (uri, options = {}, readProgressCallback = noop) {
+  let totalBytes;
 
   const url = new URL(uri, 'file:///');
   switch (url.protocol) {
     case 'http:':
     case 'https:': {
       return new Promise((resolve, reject) => {
-        const http_options = {
+        const httpOptions = {
           url: uri,
         };
         if (options.range) {
-          http_options.headers = {
+          httpOptions.headers = {
             Range: `bytes=${options.range.start}-${options.range.end}`,
           };
         }
 
-        const req = request(http_options);
-        const read_stream = new CountingStream();
-        read_stream.rlDestroy = () => req.abort();
+        const req = request(httpOptions);
+        const readStream = new CountingStream();
+        readStream.rlDestroy = () => req.abort();
         req.on('error', (error) => reject(error));
-        read_stream.on('error', (err) => reject(err));
+        readStream.on('error', (err) => reject(err));
         req.on('response', (response) => {
           if (response.statusCode >= 200 && response.statusCode < 300) {
-            total_bytes = parseInt(response.headers['content-length'], 10);
-            read_stream.setExpectedBytes(total_bytes);
-            resolve(read_stream);
-            return read_stream.unstop();
+            totalBytes = parseInt(response.headers['content-length'], 10);
+            readStream.setExpectedBytes(totalBytes);
+            resolve(readStream);
+            return readStream.unstop();
           }
           reject(new Error('BadStatusCode'));
-          return req.once('complete', ({headers, statusCode}, body) => {
+          return req.once('complete', ({ headers, statusCode }, body) => {
             log.info('error getting uri', uri, 'got status code', statusCode);
             log.info('--response headers', headers);
             log.info('--response body:', body);
           });
         });
-        read_stream.on('progress', (progress) => {
-          read_progress_callback({
+        readStream.on('progress', (progress) => {
+          readProgressCallback({
             step: progress.bytes_out,
-            total: total_bytes,
+            total: totalBytes,
           });
         });
-        req.pipe(read_stream);
-        read_stream.on('end', () => {
-          const progress = read_stream.getProgress();
-          read_progress_callback({
+        req.pipe(readStream);
+        readStream.on('end', () => {
+          const progress = readStream.getProgress();
+          readProgressCallback({
             step: progress.bytes_out,
-            total: total_bytes,
+            total: totalBytes,
           });
         });
         return null;
@@ -149,26 +147,26 @@ ResourceLib.getReadStreamByUri = async function (
     case 'file:': {
       uri = decodeURIComponent(url.pathname); // normalized path
       await pfs.access(uri, R_OK); // this throws if access is denied
-      const fs_options = {};
+      const fsOptions = {};
       if (options.range) {
-        fs_options.start = options.range.start;
-        fs_options.end = options.range.end;
+        fsOptions.start = options.range.start;
+        fsOptions.end = options.range.end;
       }
       const stats = await pfs.stat(uri);
-      total_bytes = stats.size;
-      const read_stream = fs.createReadStream(uri, fs_options);
-      const pass_through = new CountingStream();
-      pass_through.unstop();
-      pass_through.rlDestroy = () => read_stream.destroy();
-      pass_through.setExpectedBytes(total_bytes);
-      pass_through.on('progress', (progress) => {
-        read_progress_callback({
+      totalBytes = stats.size;
+      const readStream = fs.createReadStream(uri, fsOptions);
+      const passThrough = new CountingStream();
+      passThrough.unstop();
+      passThrough.rlDestroy = () => readStream.destroy();
+      passThrough.setExpectedBytes(totalBytes);
+      passThrough.on('progress', (progress) => {
+        readProgressCallback({
           step: progress.bytes_out,
-          total: total_bytes,
+          total: totalBytes,
         });
       });
-      read_stream.pipe(pass_through);
-      return pass_through;
+      readStream.pipe(passThrough);
+      return passThrough;
     }
     default:
       log.error('unhandled stream protocol:', url.protocol);
@@ -176,7 +174,7 @@ ResourceLib.getReadStreamByUri = async function (
   }
 };
 
-ResourceLib.getBufferFromStream = async function (source_stream) {
+ResourceLib.getBufferFromStream = async function (sourceStream) {
   return new Promise((resolve, reject) => {
     const buffers = [];
     let cleanup = null;
@@ -195,39 +193,35 @@ ResourceLib.getBufferFromStream = async function (source_stream) {
       resolve(Buffer.concat(buffers));
     };
 
-    source_stream.on('data', bufferedRead);
-    source_stream.on('error', bufferError);
-    source_stream.on('end', bufferEnd);
+    sourceStream.on('data', bufferedRead);
+    sourceStream.on('error', bufferError);
+    sourceStream.on('end', bufferEnd);
     cleanup = function () {
-      source_stream.off('data', bufferedRead);
-      source_stream.off('error', bufferError);
-      source_stream.off('end', bufferEnd);
+      sourceStream.off('data', bufferedRead);
+      sourceStream.off('error', bufferError);
+      sourceStream.off('end', bufferEnd);
     };
   });
 };
 
 ResourceLib.getBufferFromUri = async function (uri, options) {
   options = options || {};
-  let num_tries = 0;
-  const max_attempts = options.max_attempts || 5;
+  let numTries = 0;
+  const maxAttempts = options.max_attempts || 5;
   while (true) {
     let buffer;
     try {
-      const read_stream = await ResourceLib.getReadStreamByUri(uri, options);
-      buffer = await ResourceLib.getBufferFromStream(read_stream);
+      const readStream = await ResourceLib.getReadStreamByUri(uri, options);
+      buffer = await ResourceLib.getBufferFromStream(readStream);
     } catch (err) {
-      if (
-        err.message === 'BadStatusCode' ||
-        err.code === 'TimeoutError' ||
-        err.code === 'NetworkingError'
-      ) {
+      if (err.message === 'BadStatusCode' || err.code === 'TimeoutError' || err.code === 'NetworkingError') {
         log.info('retryable error while getting buffer from stream', err.code);
-        num_tries++;
-        if (num_tries >= max_attempts) {
+        numTries++;
+        if (numTries >= maxAttempts) {
           log.info('too many errors getting buffer from stream');
           throw err;
         }
-        await utils.sleep(Math.round(Math.exp(num_tries)) * 1000);
+        await utils.sleep(Math.round(Math.exp(numTries)) * 1000);
         log.info('retrying get buffer from uri');
         continue;
       }
@@ -260,14 +254,14 @@ ResourceLib.getWriteStreamByUri = async function (uri, out = {}) {
       case 'file:': {
         uri = url.pathname; // normalized path
         await pfs.access(path.dirname(uri), W_OK); // throws on no access
-        const pass_through = new CountingStream();
-        pass_through.unstop(); // for write streams we immediately unstop.
-        const write_stream = fs.createWriteStream(uri);
-        pass_through.pipe(write_stream);
-        resolve(pass_through);
+        const passThrough = new CountingStream();
+        passThrough.unstop(); // for write streams we immediately unstop.
+        const writeStream = fs.createWriteStream(uri);
+        passThrough.pipe(writeStream);
+        resolve(passThrough);
 
-        write_stream.on('close', () => {
-          pass_through.emit('rl_done');
+        writeStream.on('close', () => {
+          passThrough.emit('rl_done');
         });
         return null;
       }
@@ -280,38 +274,26 @@ ResourceLib.getWriteStreamByUri = async function (uri, out = {}) {
 
 ResourceLib.writeBufferToUri = async function (buffer, uri) {
   const out = {};
-  const write_stream = await ResourceLib.getWriteStreamByUri(uri, out);
+  const writeStream = await ResourceLib.getWriteStreamByUri(uri, out);
 
   return new Promise((resolve, reject) => {
-    write_stream.on('error', (err) => {
+    writeStream.on('error', (err) => {
       if (uri.startsWith('s3:') && out.req) {
         log.error('error writing buffer to s3:', uri, err);
-        if (
-          out.req.singlePart &&
-          out.req.singlePart.response &&
-          out.req.singlePart.response.httpResponse
-        ) {
-          log.error(
-            'response headers for',
-            uri,
-            out.req.singlePart.response.httpResponse.headers,
-          );
-          log.error(
-            'response body for',
-            uri,
-            out.req.singlePart.response.httpResponse.body.toString('utf8'),
-          );
+        if (out.req.singlePart && out.req.singlePart.response && out.req.singlePart.response.httpResponse) {
+          log.error('response headers for', uri, out.req.singlePart.response.httpResponse.headers);
+          log.error('response body for', uri, out.req.singlePart.response.httpResponse.body.toString('utf8'));
         }
       }
       return reject(err);
     });
 
-    write_stream.on('rl_done', () => {
-      const progress = write_stream.getProgress();
+    writeStream.on('rl_done', () => {
+      const progress = writeStream.getProgress();
       resolve(progress.bytes_out);
     });
 
-    write_stream.end(buffer);
+    writeStream.end(buffer);
   });
 };
 
@@ -320,18 +302,18 @@ ResourceLib.writeStringToUri = async function (str, uri) {
 };
 
 ResourceLib.copyFromStreamToUri = async function (
-  source_stream,
-  dest_uri,
-  write_progress_callback = noop,
-  timeout_ms = DEFAULT_TIMEOUT_MS,
+  sourceStream,
+  destUri,
+  writeProgressCallback = noop,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 ) {
   let cleanup;
-  let timeout_id;
-  const timeout_error = new Error('Timeout');
-  timeout_error.code = 'TimeoutError';
+  let timeoutId;
+  const timeoutError = new Error('Timeout');
+  timeoutError.code = 'TimeoutError';
 
   const out = {};
-  const dest_stream = await ResourceLib.getWriteStreamByUri(dest_uri, out);
+  const destStream = await ResourceLib.getWriteStreamByUri(destUri, out);
 
   return new Promise((resolve, reject) => {
     let done = function (err) {
@@ -339,142 +321,106 @@ ResourceLib.copyFromStreamToUri = async function (
       if (err) {
         return reject(err);
       }
-      const progress = dest_stream.getProgress();
+      const progress = destStream.getProgress();
       return resolve(progress.bytes_out);
     };
     const error = function (err) {
       cleanup();
-      if (this === source_stream) {
-        log.error(
-          'error copying file from source_stream to uri:',
-          dest_uri,
-          err,
-        );
+      if (this === sourceStream) {
+        log.error('error copying file from source_stream to uri:', destUri, err);
         return reject(err);
       }
-      log.info('error copying file to dest_stream:', dest_uri, err);
-      if (dest_uri.startsWith('s3:') && out.req) {
+      log.info('error copying file to dest_stream:', destUri, err);
+      if (destUri.startsWith('s3:') && out.req) {
         log.error('error copying stream to s3:', err);
-        if (
-          out.req.singlePart &&
-          out.req.singlePart.response &&
-          out.req.singlePart.response.httpResponse
-        ) {
-          log.error(
-            'response headers for',
-            dest_uri,
-            out.req.singlePart.response.httpResponse.headers,
-          );
-          log.error(
-            'response body for',
-            dest_uri,
-            out.req.singlePart.response.httpResponse.body.toString('utf8'),
-          );
+        if (out.req.singlePart && out.req.singlePart.response && out.req.singlePart.response.httpResponse) {
+          log.error('response headers for', destUri, out.req.singlePart.response.httpResponse.headers);
+          log.error('response body for', destUri, out.req.singlePart.response.httpResponse.body.toString('utf8'));
         }
       }
       return reject(err);
     };
     cleanup = function () {
       done = noop;
-      if (timeout_id) {
-        clearTimeout(timeout_id);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
-      if (source_stream.off) {
-        source_stream.off('error', error);
+      if (sourceStream.off) {
+        sourceStream.off('error', error);
       }
-      if (dest_stream.off) {
-        dest_stream.off('error', error);
+      if (destStream.off) {
+        destStream.off('error', error);
       }
     };
-    source_stream.on('error', error);
-    dest_stream.on('error', error);
-    dest_stream.on('rl_done', done);
+    sourceStream.on('error', error);
+    destStream.on('error', error);
+    destStream.on('rl_done', done);
 
-    dest_stream.on('progress', (progress) => {
-      if (timeout_id) {
-        clearTimeout(timeout_id);
-        timeout_id = setTimeout(error, timeout_ms, timeout_error);
+    destStream.on('progress', (progress) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(error, timeoutMs, timeoutError);
       }
-      let expected_bytes = progress.expected_bytes;
-      if (!expected_bytes && source_stream.getExpectedBytes) {
-        expected_bytes = source_stream.getExpectedBytes();
-        dest_stream.setExpectedBytes(expected_bytes);
+      let expectedBytes = progress.expectedBytes;
+      if (!expectedBytes && sourceStream.getExpectedBytes) {
+        expectedBytes = sourceStream.getExpectedBytes();
+        destStream.setExpectedBytes(expectedBytes);
       }
 
-      write_progress_callback({
-        step: progress.bytes_out,
-        total: expected_bytes,
+      writeProgressCallback({
+        step: progress.bytesOut,
+        total: expectedBytes,
       });
     });
-    dest_stream.on('end', () => {
-      if (timeout_id) {
-        clearTimeout(timeout_id);
-        timeout_id = null;
+    destStream.on('end', () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
       }
-      const progress = dest_stream.getProgress();
-      write_progress_callback({
-        step: progress.bytes_out,
-        total: progress.expected_bytes,
+      const progress = destStream.getProgress();
+      writeProgressCallback({
+        step: progress.bytesOut,
+        total: progress.expectedBytes,
       });
     });
 
-    if (timeout_ms !== 0) {
-      timeout_id = setTimeout(error, timeout_ms, timeout_error);
+    if (timeoutMs !== 0) {
+      timeoutId = setTimeout(error, timeoutMs, timeoutError);
     }
-    source_stream.pipe(dest_stream);
+    sourceStream.pipe(destStream);
   });
 };
 
 ResourceLib.copyByUris = async function (
-  source_uri,
-  dest_uri,
-  read_progress_callback = noop,
-  write_progress_callback = noop,
-  timeout_ms = DEFAULT_TIMEOUT_MS,
+  sourceUri,
+  destUri,
+  readProgressCallback = noop,
+  writeProgressCallback = noop,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 ) {
   // see if we have an optimized implementation
-  const source_url = new URL(source_uri, 'file:///');
-  const dest_url = new URL(dest_uri, 'file:///');
+  const sourceUrl = new URL(sourceUri, 'file:///');
+  const destUrl = new URL(destUri, 'file:///');
 
-  const source_stream = await ResourceLib.getReadStreamByUri(
-    source_uri,
-    {},
-    read_progress_callback,
-  );
-  return ResourceLib.copyFromStreamToUri(
-    source_stream,
-    dest_uri,
-    write_progress_callback,
-    timeout_ms,
-  );
+  const sourceStream = await ResourceLib.getReadStreamByUri(sourceUri, {}, readProgressCallback);
+  return ResourceLib.copyFromStreamToUri(sourceStream, destUri, writeProgressCallback, timeoutMs);
 };
 
 ResourceLib.copyByUrisWithRetries = async function (
-  source_uri,
-  dest_uri,
-  read_progress_callback = noop,
-  write_progress_callback = noop,
-  timeout_ms = DEFAULT_TIMEOUT_MS,
-  max_attempts = 5,
+  sourceUri,
+  destUri,
+  readProgressCallback = noop,
+  writeProgressCallback = noop,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  maxAttempts = 5,
 ) {
   return utils.callWithRetries(
-    () =>
-      ResourceLib.copyByUris(
-        source_uri,
-        dest_uri,
-        read_progress_callback,
-        write_progress_callback,
-        timeout_ms,
-      ),
-    max_attempts,
+    () => ResourceLib.copyByUris(sourceUri, destUri, readProgressCallback, writeProgressCallback, timeoutMs),
+    maxAttempts,
   );
 };
 
-ResourceLib.getDirFilenames = async function (
-  uri,
-  regex = /.+/u,
-  options = {},
-) {
+ResourceLib.getDirFilenames = async function (uri, regex = /.+/u, options = {}) {
   const url = new URL(uri, 'file:///');
   switch (url.protocol) {
     case 'http:':
@@ -497,11 +443,7 @@ ResourceLib.getDirFilenames = async function (
   }
 };
 
-ResourceLib.getDirSubdirNames = async function (
-  uri,
-  regex = /.+/u,
-  options = {},
-) {
+ResourceLib.getDirSubdirNames = async function (uri, regex = /.+/u, options = {}) {
   const url = new URL(uri, 'file:///');
   switch (url.protocol) {
     case 'http:':
@@ -532,11 +474,7 @@ ResourceLib.getDirSubdirNames = async function (
 // When called on a file path, this returns the path from the uri
 // i.e. if the uri is file:///tmp and are files in it are
 // foo/bar.js and baz.js, the output will be ['foo/bar.js', and 'baz.js']
-ResourceLib.getDirFilenamesTree = async function (
-  uri,
-  regex = /.+/u,
-  options = {},
-) {
+ResourceLib.getDirFilenamesTree = async function (uri, regex = /.+/u, options = {}) {
   const url = new URL(uri, 'file:///');
   switch (url.protocol) {
     case 'http:':
@@ -577,11 +515,7 @@ ResourceLib.getDirFilenamesTree = async function (
 // i.e. if the uri is file:///tmp and are files in it are
 // foo/bar.js and baz.js, the output will be ['/tmp/foo/bar.js', and '/tmp/baz.js']
 
-ResourceLib.getDirFullFilenamesTree = async function (
-  uri,
-  regex = /.+/u,
-  options = {},
-) {
+ResourceLib.getDirFullFilenamesTree = async function (uri, regex = /.+/u, options = {}) {
   const url = new URL(uri, 'file:///');
   switch (url.protocol) {
     case 'http:':
@@ -735,7 +669,7 @@ ResourceLib.makeParentDirectoriesByUri = async function (uri) {
       throw new Error('CannotMakeDirHttp');
     case 'file:': {
       uri = decodeURIComponent(url.pathname); // normalized path
-      await pfs.mkdir(path.dirname(uri), {recursive: true});
+      await pfs.mkdir(path.dirname(uri), { recursive: true });
       return;
     }
     default:

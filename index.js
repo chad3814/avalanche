@@ -5,4 +5,4 @@
 import Avalanche from './avalanche.js';
 import ResourceIo from './resource_io.js';
 
-export default {Avalanche, ResourceIo};
+export default { Avalanche, ResourceIo };

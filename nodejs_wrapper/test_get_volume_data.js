@@ -15,22 +15,22 @@ const main = async function () {
 
   log.info('lavf version', Avalanche.getAvFormatVersionString());
 
-  const source_uri = process.argv[2];
-  const resource_io = new ResourceIo(source_uri);
-  let clip_volume_data;
+  const sourceUri = process.argv[2];
+  const resourceIo = new ResourceIo(sourceUri);
+  let clipVolumeData;
   try {
-    const video_reader = Avalanche.createVideoReader();
-    await video_reader.init(resource_io);
-    if (!video_reader.verifyHasAudioStream()) {
+    const videoReader = Avalanche.createVideoReader();
+    await videoReader.init(resourceIo);
+    if (!videoReader.verifyHasAudioStream()) {
       const SILENT_DB = -91;
-      clip_volume_data = {
-        mean_volume: SILENT_DB,
-        max_volume: SILENT_DB,
+      clipVolumeData = {
+        meanVolume: SILENT_DB,
+        maxVolume: SILENT_DB,
       };
-      log.info('result is silence', clip_volume_data);
+      log.info('result is silence', clipVolumeData);
       return;
     }
-    clip_volume_data = await video_reader.getVolumeData((step, total) => {
+    clipVolumeData = await videoReader.getVolumeData((step, total) => {
       log.info('progress', step, total);
     });
   } catch (err) {
@@ -39,7 +39,7 @@ const main = async function () {
   } finally {
     Avalanche.destroy();
   }
-  log.info('result is', clip_volume_data);
+  log.info('result is', clipVolumeData);
 };
 
 main();

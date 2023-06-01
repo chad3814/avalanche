@@ -15,12 +15,12 @@ const main = async function () {
 
   log.info('lavf version', Avalanche.getAvFormatVersionString());
 
-  const source_uri = process.argv[2];
-  const resource_io = new ResourceIo(source_uri);
+  const sourceUri = process.argv[2];
+  const resourceIo = new ResourceIo(sourceUri);
   try {
-    const video_reader = Avalanche.createVideoReader();
-    await video_reader.init(resource_io);
-    const result = await video_reader.remux(process.argv[3], (step, total) => {
+    const videoReader = Avalanche.createVideoReader();
+    await videoReader.init(resourceIo);
+    const result = await videoReader.remux(process.argv[3], (step, total) => {
       log.info('progress', step, total);
     });
     log.info('result', result);

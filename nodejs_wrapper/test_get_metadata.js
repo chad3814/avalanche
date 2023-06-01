@@ -16,12 +16,12 @@ const main = async function () {
   log.info('lavf version', Avalanche.getAvFormatVersionString());
 
   const uri = process.argv[2];
-  const resource_io = new ResourceIo(uri);
+  const resourceIo = new ResourceIo(uri);
   let metadata;
   try {
-    const video_reader = Avalanche.createVideoReader();
-    await video_reader.init(resource_io);
-    metadata = await video_reader.getMetadata();
+    const videoReader = Avalanche.createVideoReader();
+    await videoReader.init(resourceIo);
+    metadata = await videoReader.getMetadata();
   } catch (err) {
     return;
   } finally {
