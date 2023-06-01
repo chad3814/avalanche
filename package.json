@@ -1,6 +1,6 @@
 {
   "name": "avalanche-video",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "main": "buidl/index.js",
   "type": "module",
   "repository": "git@github.com:chad3814/avalanche.git",
@@ -26,10 +26,10 @@
     "clean": "node-gyp clean --silent && rimraf build",
     "format": "prettier --write \"**/*.ts\" \"*.js\" \"nodejs_wrapper/**/*.js\"",
     "lint": "tslint -p tsconfig.json",
-    "prepare" : "npm run build",
-    "prepublishOnly" : "npm run lint",
-    "preversion" : "npm run lint",
-    "version" : "npm run format && git add -A"
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run lint",
+    "preversion": "npm run lint",
+    "version": "npm run format && git add -A"
   },
   "files": [
     "build",
